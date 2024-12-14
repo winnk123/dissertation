@@ -1,0 +1,8 @@
+prefix=/home/chenyue001/Khattiya-Explore-Bench/devel
+
+Name: multirobot_map_merge
+Description: Description of multirobot_map_merge
+Version: 2.1.1
+Cflags: -I/home/chenyue001/Khattiya-Explore-Bench/devel/include
+Libs: -L${prefix}/lib 
+Requires: geometry_msgs map_msgs nav_msgs tf2_geometry_msgs

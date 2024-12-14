@@ -1,0 +1,8 @@
+prefix=/home/chenyue001/Khattiya-Explore-Bench/devel
+
+Name: graythree
+Description: Description of graythree
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

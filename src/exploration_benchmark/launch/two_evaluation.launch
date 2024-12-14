@@ -1,0 +1,6 @@
+<launch>
+<arg name="map" default="map1" />
+  <node pkg="exploration_benchmark" type="new_exploration_metric_for_two_robots.py" name="evaluation" output="screen">
+    <param name="map" value="$(arg map)" />
+  </node>
+</launch>

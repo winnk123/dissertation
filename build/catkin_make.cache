@@ -1,0 +1,2 @@
+exploration_benchmark:graythree:map_merge:sim_env
+-DCATKIN_DEVEL_PREFIX=/home/chenyue001/Khattiya-Explore-Bench/devel -DCMAKE_INSTALL_PREFIX=/home/chenyue001/Khattiya-Explore-Bench/install -G Unix Makefiles
