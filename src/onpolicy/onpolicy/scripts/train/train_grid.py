@@ -18,7 +18,7 @@ def make_train_env(all_args):
     def get_env_fn(rank):
         def init_env():
             if all_args.env_name == "GridEnv":
-                env = GridEnv(0.1, 3, all_args.num_agents, 100)
+                env = GridEnv(0.1, 3, all_args.num_agents, 100)  ##实例化环境
             else:
                 print("Can not support the " +
                       all_args.env_name + "environment.")

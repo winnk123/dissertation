@@ -346,5 +346,13 @@ def get_config():
 
     # pretrained parameters
     parser.add_argument("--model_dir", type=str, default=None, help="by default None. set the path to pretrained model.")
-
+    
+    ##graph parameters
+    parser.add_argument("--use_graph_module", action='store_true', default=False,
+                    help="Whether to use the graph structure module for enhanced state representation.")
+    parser.add_argument("--graph_node_dim", type=int, default=5,
+                    help="Dimension of each node's input features for the graph module.")
+    parser.add_argument("--graph_embedding_dim", type=int, default=128,
+                       help="Hidden dimension for the graph module (Transformer embedding size).")
+ 
     return parser

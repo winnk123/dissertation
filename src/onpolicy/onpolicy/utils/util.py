@@ -40,6 +40,7 @@ def get_shape_from_obs_space(obs_space):
         obs_shape = obs_space.spaces
     else:
         raise NotImplementedError
+    #print(f'obs_shape: {obs_shape}')
     return obs_shape
 
 def get_shape_from_act_space(act_space):

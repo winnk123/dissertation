@@ -1092,7 +1092,7 @@ class GridEnv(gym.Env):
                         frontiers.append([i,j])      
         return frontiers, obstacles
 
-    #def get_goal_for_cost(self):
+    def get_goal_for_cost(self):
         map_goal = []
         for e in range(self.num_agents):
             # goal = [int(self.width*data['global_goal'][e][0]), int(self.height*data['global_goal'][e][1])]
@@ -1204,7 +1204,7 @@ class GridEnv(gym.Env):
         #     self.window.show_img(self.visualize_map)
         return np.array(map_goal)
 
-    #def step_for_cost(self):
+    def step_for_cost(self):
         obs = []
         flag = False
         self.explored_each_map_t = []
@@ -1306,7 +1306,7 @@ class GridEnv(gym.Env):
 
         return obs
     
-    #def frontiers_detection_for_mmpf(self, map):
+    def frontiers_detection_for_mmpf(self, map):
         '''
         detect frontiers from current built map
         '''
@@ -1345,7 +1345,7 @@ class GridEnv(gym.Env):
                         frontiers.append([i,j])      
         return frontiers, obstacles
 
-    #def get_goal_for_mmpf(self):
+    def get_goal_for_mmpf(self):
         map_goal = []
         for e in range(self.num_agents):
             # goal = [int(self.width*data['global_goal'][e][0]), int(self.height*data['global_goal'][e][1])]
@@ -1485,7 +1485,7 @@ class GridEnv(gym.Env):
         # import pdb; pdb.set_trace()
         return np.array(map_goal)
 
-    #def step_for_mmpf(self):
+    def step_for_mmpf(self):
         obs = []
         flag = False
         self.explored_each_map_t = []

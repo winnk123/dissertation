@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.utils.prune as prune
 
 from onpolicy.algorithms.utils.util import init, check
 from onpolicy.algorithms.utils.cnn import CNNBase
@@ -13,6 +14,7 @@ from onpolicy.algorithms.utils.rnn import RNNLayer
 from onpolicy.algorithms.utils.act import ACTLayer
 from onpolicy.algorithms.utils.popart import PopArt
 from onpolicy.utils.util import get_shape_from_obs_space
+from .graphpolicy import PolicyNet
 
 class R_Actor(nn.Module):
     def __init__(self, args, obs_space, action_space, device=torch.device("cpu")):
@@ -50,10 +52,20 @@ class R_Actor(nn.Module):
             self.mlp = MLPLayer(obs_shape[0], self.hidden_size,
                               self._influence_layer_N, self._use_orthogonal, self._activation_id)
             input_size += self.hidden_size
-
+        
+        ###处理图结构信息
+        if getattr(args, "use_graph_module", False):
+            # 假设图节点特征维度 node_dim 与 Transformer 隐藏层维度 embedding_dim 在 args 中给出
+            self.graph_policy = PolicyNet(node_dim=args.graph_node_dim, embedding_dim=args.graph_embedding_dim)
+            # 为了融合，融合维度增加 graph_embedding_dim
+            input_size += args.graph_embedding_dim
+        ####
+        
         self.act = ACTLayer(action_space, input_size, self._use_orthogonal, self._gain)
 
         if self._use_policy_vhead:
+            #在初始化的时候使用网络剪裁
+            #self.apply_pruning(self.v_out)
             init_method = [nn.init.xavier_uniform_, nn.init.orthogonal_][self._use_orthogonal]
             def init_(m): 
                 return init(m, init_method, lambda x: nn.init.constant_(x, 0))
@@ -61,10 +73,19 @@ class R_Actor(nn.Module):
                 self.v_out = init_(PopArt(input_size, 1, device=device))
             else:
                 self.v_out = init_(nn.Linear(input_size, 1))
-
+        
         self.to(device)
+        
+        
+    #def apply_pruning(module):
+       #if module is not None:
+       # 对全连接层的权重进行L1非结构化剪枝，阈值设置为 30% 剪枝率
+        #prune.l1_unstructured(module, name='weight', amount=0.3)
+       # 可以对剪枝后的权重进行重新修正
+        #prune.remove(module, 'weight')  # 将剪枝后的权重永久化
 
-    def forward(self, obs, rnn_states, masks, available_actions=None, deterministic=False):        
+  
+    def forward(self, obs, rnn_states, masks, available_actions=None, deterministic=False, graph_inputs=None):        
         if self._mixed_obs:
             for key in obs.keys():
                 obs[key] = check(obs[key]).to(**self.tpdv)
@@ -80,15 +101,29 @@ class R_Actor(nn.Module):
         if self._use_naive_recurrent_policy or self._use_recurrent_policy:
             actor_features, rnn_states = self.rnn(actor_features, rnn_states, masks)
 
-        if self._use_influence_policy:
+        #if self._use_influence_policy:
             mlp_obs = self.mlp(obs)
             actor_features = torch.cat([actor_features, mlp_obs], dim=1)
-
+            
+        # 新增：如果提供了图结构信息且启用了图结构模块，则提取图特征并融合
+        if hasattr(self, "graph_policy") and (graph_inputs is not None):
+            # graph_inputs 应包含图结构模块所需的所有输入，例如：
+            #   node_inputs, node_padding_mask, edge_mask, current_index, current_edge, edge_padding_mask
+            # 此处调用 graph_policy，假设其返回的是图特征向量，形状为 [batch, graph_embedding_dim]
+            graph_feat = self.graph_policy(graph_inputs['node_inputs'],
+                                           graph_inputs['node_padding_mask'],
+                                           graph_inputs['edge_mask'],
+                                           graph_inputs['current_index'],
+                                           graph_inputs['current_edge'],
+                                           graph_inputs.get('edge_padding_mask', None))
+        # 融合两部分特征（这里采用简单拼接，也可以采用加权求和、注意力融合等方式）
+        actor_features = torch.cat([actor_features, graph_feat], dim=1)
+        
         actions, action_log_probs = self.act(actor_features, available_actions, deterministic)
         
         return actions, action_log_probs, rnn_states
 
-    def evaluate_actions(self, obs, rnn_states, action, masks, available_actions=None, active_masks=None):
+    def evaluate_actions(self, obs, rnn_states, action, masks, available_actions=None, active_masks=None, graph_inputs=None):
         if self._mixed_obs:
             for key in obs.keys():
                 obs[key] = check(obs[key]).to(**self.tpdv)
@@ -113,14 +148,24 @@ class R_Actor(nn.Module):
         if self._use_influence_policy:
             mlp_obs = self.mlp(obs)
             actor_features = torch.cat([actor_features, mlp_obs], dim=1)
-
+        # 新增：图结构信息处理
+        
+        if hasattr(self, "graph_policy") and (graph_inputs is not None):
+            graph_feat = self.graph_policy(graph_inputs['node_inputs'],
+                                           graph_inputs['node_padding_mask'],
+                                           graph_inputs['edge_mask'],
+                                           graph_inputs['current_index'],
+                                           graph_inputs['current_edge'],
+                                           graph_inputs.get('edge_padding_mask', None))
+            actor_features = torch.cat([actor_features, graph_feat], dim=1)
+        
         action_log_probs, dist_entropy = self.act.evaluate_actions(actor_features, action, available_actions, active_masks = active_masks if self._use_policy_active_masks else None)
 
         values = self.v_out(actor_features) if self._use_policy_vhead else None
        
         return action_log_probs, dist_entropy, values
 
-    def get_policy_values(self, obs, rnn_states, masks):        
+    def get_policy_values(self, obs, rnn_states, masks, graph_inputs):        
         if self._mixed_obs:
             for key in obs.keys():
                 obs[key] = check(obs[key]).to(**self.tpdv)
@@ -138,6 +183,16 @@ class R_Actor(nn.Module):
             mlp_obs = self.mlp(obs)
             actor_features = torch.cat([actor_features, mlp_obs], dim=1)
         
+        # 新增：融合图结构信息
+        if hasattr(self, "graph_policy") and (graph_inputs is not None):
+            graph_feat = self.graph_policy(graph_inputs['node_inputs'],
+                                           graph_inputs['node_padding_mask'],
+                                           graph_inputs['edge_mask'],
+                                           graph_inputs['current_index'],
+                                           graph_inputs['current_edge'],
+                                           graph_inputs.get('edge_padding_mask', None))
+            actor_features = torch.cat([actor_features, graph_feat], dim=1)
+            
         values = self.v_out(actor_features)
 
         return values
@@ -206,5 +261,7 @@ class R_Critic(nn.Module):
             critic_features = torch.cat([critic_features, mlp_share_obs], dim=1)
 
         values = self.v_out(critic_features)
-
+        
+       
         return values, rnn_states
+ 

@@ -16,7 +16,6 @@ from .utils import *
 from .nodemanage import *
 from .parameter import *
 from .quads import *
-import torch
 
 class GridEnv(gym.Env):
     def __init__(self, resolution, sensor_range, num_agents, max_steps, 
@@ -57,8 +56,9 @@ class GridEnv(gym.Env):
         
         ## graph construction
         self.node_coords=None
-        self.current_idx=None
+        self.current_index=None
         self.adjacent_matrix=None
+        self.current_index=None
         self.neighbor_indices=None
         self.utility=None
         self.guidpost=None
@@ -70,7 +70,7 @@ class GridEnv(gym.Env):
         self.map_info = None
         self.updating_map_info=None
         self.accumulated_map= None
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        
         ##
         self.robot_discrete_dir = [i*math.pi for i in range(16)]
         self.agent_view_size = int(sensor_range/self.resolution)
@@ -579,36 +579,37 @@ class GridEnv(gym.Env):
                         min_idx = idx
                 map_goal.append(free_cluster_center[min_idx])
                 
-        #if self.visualization:
-            #self.visualize_map = copy.deepcopy(self.complete_map)
-            #for pt in self.visualize_goal:
-                #if pt[0] > 0 and pt[0] < 299 and pt[1] > 0 and pt[1] < 299:
+        if self.visualization:
+            self.visualize_map = copy.deepcopy(self.complete_map)
+            for pt in self.visualize_goal:
+                if pt[0] > 0 and pt[0] < 299 and pt[1] > 0 and pt[1] < 299:
                     ##
-                    #self.visualize_map[pt[0], pt[1]] = 128
-                    #self.visualize_map[pt[0]-1, pt[1]] = 128
-                    #self.visualize_map[pt[0]+1, pt[1]] = 128
-                    #self.visualize_map[pt[0], pt[1]-1] = 128
-                    #self.visualize_map[pt[0]-1, pt[1]-1] = 128
-                    #self.visualize_map[pt[0]+1, pt[1]-1] = 128
-                    #self.visualize_map[pt[0], pt[1]+1] = 128
-                    #self.visualize_map[pt[0]-1, pt[1]+1] = 128
-                    #self.visualize_map[pt[0]+1, pt[1]+1] = 128
+                    self.visualize_map[pt[0], pt[1]] = 128
+                    self.visualize_map[pt[0]-1, pt[1]] = 128
+                    self.visualize_map[pt[0]+1, pt[1]] = 128
+                    self.visualize_map[pt[0], pt[1]-1] = 128
+                    self.visualize_map[pt[0]-1, pt[1]-1] = 128
+                    self.visualize_map[pt[0]+1, pt[1]-1] = 128
+                    self.visualize_map[pt[0], pt[1]+1] = 128
+                    self.visualize_map[pt[0]-1, pt[1]+1] = 128
+                    self.visualize_map[pt[0]+1, pt[1]+1] = 128
                     
                     # 这里增加扩展区域
-                    #self.visualize_map[pt[0]-2, pt[1]] = 128
-                    #self.visualize_map[pt[0]+2, pt[1]] = 128
-                    #self.visualize_map[pt[0], pt[1]-2] = 128
-                    #self.visualize_map[pt[0], pt[1]+2] = 128
-                    #self.visualize_map[pt[0]+2, pt[1]-2] = 128
-                    #self.visualize_map[pt[0]-2, pt[1]+2] = 128
-                    #self.visualize_map[pt[0]+2, pt[1]+2] = 128
-                #else:
-                    #self.visualize_map[pt[0], pt[1]] = 128
+                    self.visualize_map[pt[0]-2, pt[1]] = 128
+                    self.visualize_map[pt[0]+2, pt[1]] = 128
+                    self.visualize_map[pt[0], pt[1]-2] = 128
+                    self.visualize_map[pt[0], pt[1]+2] = 128
+                    self.visualize_map[pt[0]-2, pt[1]-2] = 128
+                    self.visualize_map[pt[0]+2, pt[1]-2] = 128
+                    self.visualize_map[pt[0]-2, pt[1]+2] = 128
+                    self.visualize_map[pt[0]+2, pt[1]+2] = 128
+                else:
+                    self.visualize_map[pt[0], pt[1]] = 128
             ##
-            #for goal in map_goal:
-                    #self.visualize_map[goal[0], goal[1]] = 64  # 高亮显示
+            for goal in map_goal:
+                    self.visualize_map[goal[0], goal[1]] = 64  # 高亮显示
             ##
-            #self.window.show_img(self.visualize_map)
+            self.window.show_img(self.visualize_map)
             #
         #sys.stdout.close()
         #sys.stdout = sys.__stdout__
@@ -1076,7 +1077,7 @@ class GridEnv(gym.Env):
     def get_updating_map(self,agent_position):
         ## 根据 agent_position 计算局部地图的范围： 局部地图的原点和终点是通过 agent_position 计算得到的
         print(f"[get_updating_map] agent_position: {agent_position[0]}, {agent_position[1]}")
-        updating_map_origin_x=(agent_position[0]-self.updating_map_size/2)  ##连续坐标
+        updating_map_origin_x=(agent_position[0]-self.updating_map_size/2)
         updating_map_origin_y=(agent_position[1]-self.updating_map_size/2)
         print(f"[get_updating_map] updating_map_origin_x: {updating_map_origin_x}")
         print(f"[get_updating_map] updating_map_origin_y: {updating_map_origin_y}")
@@ -1103,7 +1104,7 @@ class GridEnv(gym.Env):
 
 
         updating_map_origin = np.array([updating_map_origin_x, updating_map_origin_y])
-        updating_map_origin_in_global_map = get_cell_position_from_coords(updating_map_origin, self.map_info) ##转换为网格坐标
+        updating_map_origin_in_global_map = get_cell_position_from_coords(updating_map_origin, self.map_info)
         print(f"[get_updating_map], map_info.map_origin_x: {self.map_info.map_origin_x}")
         print(f"[get_updating_map], map_info.map_origin_y: {self.map_info.map_origin_y}")
         updating_map_top = np.array([updating_map_top_x, updating_map_top_y])
@@ -1165,28 +1166,25 @@ class GridEnv(gym.Env):
             self.updating_map_info,
             self.map_info
         )
-        self.node_coords, self.utility, self.guidepost, self.adjacent_matrix, self.current_idx, self.neighbor_indices = \
+        self.node_coords, self.utility, self.guidepost, self.adjacent_matrix = \
             self.update_graphinfo()
-        graph_obs = self.get_graph_observation()
-        return graph_obs
     
     def update_graphinfo(self):
         ##检查节点是否存在
-        #print(f"Number of nodes in nodes_dict: {len(self.node_manager.nodes_dict)}")
+        print(f"Number of nodes in nodes_dict: {len(self.node_manager.nodes_dict)}")
         all_node_coords = []
         for node in self.node_manager.nodes_dict.__iter__():
             all_node_coords.append(node.data.coords)
         all_node_coords = np.array(all_node_coords).reshape(-1, 2)
         
-        #print(f'all_node_coords: {all_node_coords}')
+        print(f'all_node_coords: {all_node_coords}')
         
         utility = []
         guidepost = []
-        
         n_nodes = all_node_coords.shape[0]
         adjacent_matrix = np.ones((n_nodes, n_nodes)).astype(int)
         node_coords_to_check = all_node_coords[:, 0] + all_node_coords[:, 1] * 1j
-        #print(f'node_coords_to_check: {node_coords_to_check}')
+        print(f'node_coords_to_check: {node_coords_to_check}')
         for i, coords in enumerate(all_node_coords):
             node = self.node_manager.nodes_dict.find((coords[0], coords[1])).data
             utility.append(node.utility)
@@ -1199,119 +1197,13 @@ class GridEnv(gym.Env):
         utility = np.array(utility)
         guidepost = np.array(guidepost)
        
-    # 对于每个智能体计算最近节点索引
-        combined_distances = np.zeros(n_nodes)
+        print(f'adjacent_matrix:{adjacent_matrix}')
         for j in range(self.num_agents):
-          agent_pos = self.agent_pos[j] 
-          distances = np.linalg.norm(all_node_coords - np.array(agent_pos), axis=1)
-          combined_distances += distances
-        current_idx = np.argmin(combined_distances)
-        current_idx = int(current_idx)
-          #print(f'Agent {j} - shortest distance: {np.min(distances)}; current index: {current_idx}')
+             
+         print(f'{j}th agent_position:{self.discrete_to_continuous(self.agent_pos[j])}')
         #current_index = np.argwhere(node_coords_to_check == self.agent_position[0] + self.agent_position[1] * 1j)[0][0]
-        neighbor_indices = np.argwhere(adjacent_matrix[current_idx] == 0).reshape(-1)
-        print(f'all_node_coords: {all_node_coords}')
-        print(f'utility: {utility}')
-        print(f'guidepost: {guidepost}')
-        print(f'adjacent_matrix: {adjacent_matrix}')
-        print(f'current_indices: {current_idx}')
-        print(f'neighbor_indices: {neighbor_indices}')
-        return all_node_coords, utility, guidepost, adjacent_matrix, current_idx, neighbor_indices 
-    
-    def get_graph_observation(self, 
-                          node_coords=None, 
-                          node_utility=None, 
-                          node_guidepost=None, 
-                          current_idx=None, 
-                          edge_mask=None, 
-                          current_edge=None,
-                          updating_map_size=UPDATING_MAP_SIZE,
-                          sensor_range=SENSOR_RANGE,
-                          frontier_cell_size=FRONTIER_CELL_SIZE,
-                          node_padding_size=NODE_PADDING_SIZE,
-                          k_size=K_SIZE):
-   
-     # 使用传入参数或对象内部的状态
-     if node_coords is None:
-        node_coords = self.node_coords
-     if node_utility is None:
-        node_utility = self.utility.reshape(-1, 1)
-     if node_guidepost is None:
-        node_guidepost = self.guidepost.reshape(-1, 1)
-     if current_idx is None:
-        current_idx = self.current_idx
-     if edge_mask is None:
-        edge_mask = self.adjacent_matrix
-     if current_edge is None:
-        current_edge = self.neighbor_indices
-  # 2. 断言：检查 node_coords 是否至少有2维（每个节点应有 [x, y]）
-      # 2. 断言：检查 node_coords 是否至少有2维（每个节点应有 [x, y]）
-     assert node_coords.ndim == 2 and node_coords.shape[1] == 2, (
-        f"node_coords should be of shape (n, 2), got {node_coords.shape}"
-    )
-    
-    # 使用 current_index 提取当前节点坐标
-     current_node_coords = node_coords[current_idx]
-    # 断言：current_node_coords 应该是 [x, y] (shape=(2,))
-     assert current_node_coords.shape == (2,), (f"current_node_coords should be shape (2,), got {current_node_coords},and current index is {current_idx}."
-        " Probably current_index is not a single integer,?"
-    )
-     
-    # 对节点坐标进行归一化：减去当前节点坐标，再除以更新地图尺寸
-     node_coords_normalized = np.concatenate((
-        node_coords[:, 0].reshape(-1, 1) - current_node_coords[0],
-        node_coords[:, 1].reshape(-1, 1) - current_node_coords[1]
-    ), axis=-1) / updating_map_size
-
-    # 归一化节点效用
-     node_utility_normalized = node_utility / (sensor_range * 3.14 // frontier_cell_size)
-    # 拼接节点特征
-     node_inputs = np.concatenate((node_coords_normalized, node_utility_normalized, node_guidepost), axis=1)
-     node_inputs = torch.FloatTensor(node_inputs).unsqueeze(0).to(self.device)
-     
-    # 确保节点数小于 padding 大小
-     assert node_coords.shape[0] < node_padding_size, print(node_coords.shape[0], node_padding_size)
-     n_node = node_coords.shape[0]
-     padding_layer = torch.nn.ZeroPad2d((0, 0, 0, node_padding_size - n_node))
-     node_inputs = padding_layer(node_inputs)
-
-    # 构造节点 padding 掩码：有效节点置0，无效节点置1（这里用 ZeroPad2d 后拼接）
-     node_padding_mask = torch.zeros((1, 1, n_node), dtype=torch.int16).to(self.device)
-     node_padding = torch.ones((1, 1, node_padding_size - n_node), dtype=torch.int16).to(self.device)
-     node_padding_mask = torch.cat((node_padding_mask, node_padding), dim=-1)
-
-    # 将 current_index 转换为张量，形状为 (1, 1, 1)
-     current_index_tensor = torch.tensor([current_idx]).reshape(1, 1, 1).to(self.device)
-
-    # edge_mask 转换为张量并增加 batch 维度
-     edge_mask_tensor = torch.tensor(edge_mask).unsqueeze(0).to(self.device)
-     pad_edge = torch.nn.ConstantPad2d((0, node_padding_size - n_node, 0, node_padding_size - n_node), 1)
-     edge_mask_tensor = pad_edge(edge_mask_tensor)
-
-    # 处理 current_edge：先转换为张量
-     current_edge_tensor = torch.tensor(current_edge).unsqueeze(0)  # shape: (1, ?, ...)
-     k_current = current_edge_tensor.size(-1)
-     pad_edge1d = torch.nn.ConstantPad1d((0, k_size - k_current), 0)
-     current_edge_tensor = pad_edge1d(current_edge_tensor)
-     current_edge_tensor = current_edge_tensor.unsqueeze(-1)
-
-    # edge_padding_mask：构造一个与 current_edge_tensor 同样长度的掩码
-     edge_padding_mask = torch.zeros((1, 1, k_current), dtype=torch.int16).to(self.device)
-    # 找到当前 edge 在 current_edge 中的位置，假设这里采用与当前节点索引匹配的方式
-     current_in_edge = np.argwhere(current_edge == current_idx)[0][0]
-     edge_padding_mask[0, 0, current_in_edge] = 1
-     pad_edge1d_mask = torch.nn.ConstantPad1d((0, k_size - k_current), 1)
-     edge_padding_mask = pad_edge1d_mask(edge_padding_mask)
-    
-     print(f'node_inputs: {node_inputs}')
-     print(f'node_padding_mask: {node_padding_mask}')
-     print(f'edge_mask: {edge_mask_tensor}')
-     print(f'current_index: {current_index_tensor}')
-     print(f'current_edge: {current_edge_tensor}')
-     print(f'edge_padding_mask: {edge_padding_mask}')
-    
-     return [node_inputs, node_padding_mask, edge_mask_tensor, current_index_tensor, current_edge_tensor, edge_padding_mask]
-    
+        #neighbor_indices = np.argwhere(adjacent_matrix[current_index] == 0).reshape(-1)
+        return all_node_coords, utility, guidepost, adjacent_matrix, #current_index, neighbor_indices
     
     ##
     #def plot_map_with_path(self):
